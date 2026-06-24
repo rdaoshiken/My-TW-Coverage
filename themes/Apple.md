@@ -2,7 +2,7 @@
 
 > 蘋果公司台灣供應鏈成員
 
-**涵蓋公司數:** 80
+**涵蓋公司數:** 79
 
 **相關主題:** [[台積電]] (182) | [[鴻海]] (63)
 
@@ -30,7 +30,7 @@
 - **2367 燿華** (Electronic Components)
 - **6821 聯寶** (Electronic Components)
 
-## 下游 (39)
+## 下游 (38)
 
 - **2382 廣達** (Computer Hardware)
 - **2385 群光** (Computer Hardware)
@@ -59,7 +59,6 @@
 - **6854 錼創科技-KY創** (Electronic Components)
 - **4994 傳奇** (Electronic Gaming & Multimedia)
 - **2354 鴻準** (Electronics & Computer Distribution)
-- **2636 台驊控股** (Integrated Freight & Logistics)
 - **5223 安力-KY** (Metal Fabrication)
 - **6859 伯特光** (Metal Fabrication)
 - **7610 聯友金屬-創** (Other Industrial Metals & Mining)

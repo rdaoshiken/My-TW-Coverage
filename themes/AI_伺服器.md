@@ -2,7 +2,7 @@
 
 > AI 訓練與推論伺服器完整供應鏈，從晶片到系統到散熱
 
-**涵蓋公司數:** 148
+**涵蓋公司數:** 142
 
 **相關主題:** [[CoWoS]] (39) | [[HBM]] (16) | [[NVIDIA]] (104) | [[CPO]] (13) | [[資料中心]] (77)
 
@@ -41,10 +41,8 @@
 - **3691 碩禾** (Solar)
 - **8996 高力** (Specialty Industrial Machinery)
 
-## 下游 (43)
+## 下游 (38)
 
-- **2618 長榮航** (Airlines)
-- **2646 星宇航空** (Airlines)
 - **4543 萬在** (Auto Parts)
 - **6134 萬旭** (Communication Equipment)
 - **8054 安國** (Computer Hardware)
@@ -68,8 +66,6 @@
 - **3048 益登** (Electronics & Computer Distribution)
 - **3483 力致** (Electronics & Computer Distribution)
 - **6584 南俊國際** (Furnishings, Fixtures & Appliances)
-- **2643 捷迅** (Integrated Freight & Logistics)
-- **5609 中菲行** (Integrated Freight & Logistics)
 - **5426 振發** (Metal Fabrication)
 - **4304 勝昱** (Packaging & Containers)
 - **2360 致茂** (Scientific & Technical Instruments)
@@ -80,16 +76,14 @@
 - **4760 勤凱** (Semiconductor Equipment & Materials)
 - **6920 恆勁科技** (Semiconductor Equipment & Materials)
 - **3260 威剛** (Semiconductors)
-- **5607 遠雄港** (Specialty Business Services)
 - **4722 國精化** (Specialty Chemicals)
 - **2421 建準** (Specialty Industrial Machinery)
 - **6831 邁科** (Specialty Industrial Machinery)
 - **5498 凱崴** (Tools & Accessories)
 - **8390 金益鼎** (Waste Management)
 
-## 相關公司 (78)
+## 相關公司 (77)
 
-- **2610 華航** (Airlines)
 - **6175 立敦** (Aluminum)
 - **4551 智伸科** (Auto Parts)
 - **1802 台玻** (Building Materials)
