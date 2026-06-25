@@ -43,14 +43,25 @@ def repo(tmp_path: Path) -> Path:
     return r
 
 
-# Must exceed the script's default --min-quiesce-seconds so an aged file passes
-# the quiesce guard; derived from the script's own default rather than hardcoded.
-QUIESCE_MARGIN_SECONDS = mod._parse_args([]).min_quiesce_seconds * 4
+# Must comfortably exceed the script's default --min-quiesce-seconds so an aged
+# file passes the quiesce guard; derived from the script's own default rather
+# than hardcoded. The 4x margin is arbitrary headroom over the threshold so the
+# tests stay green even if the default is nudged up modestly.
+QUIESCE_HEADROOM_MULTIPLIER = 4
+QUIESCE_MARGIN_SECONDS = mod._parse_args([]).min_quiesce_seconds * QUIESCE_HEADROOM_MULTIPLIER
 
 
 def _age(path: Path, seconds: int = QUIESCE_MARGIN_SECONDS) -> None:
     old = time.time() - seconds
     os.utime(path, (old, old))
+
+
+def aged_theme_drift(repo: Path, name: str = "NEW.md") -> Path:
+    """Create a themes/ drift file aged past the quiesce guard; return its path."""
+    target = repo / "themes" / name
+    target.write_text("x\n", encoding="utf-8")
+    _age(target)
+    return target
 
 
 def test_clean_tree_exits_0(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -117,32 +128,44 @@ def test_push_requires_commit(repo: Path, monkeypatch: pytest.MonkeyPatch) -> No
     assert mod.main(["--push"]) == 1
 
 
-def test_push_to_upstream_name_rejected(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    bare = tmp_path / "up.git"
-    subprocess.run(["git", "init", "--bare", "-q", str(bare)], check=True)
-    _git(repo, "remote", "add", "upstream", str(bare))
-    new = repo / "themes" / "NEW.md"
-    new.write_text("x\n", encoding="utf-8")
-    _age(new)
+def test_push_to_upstream_name_rejected(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Name guard: a remote literally named 'upstream' is refused (its URL is
+    # irrelevant — the name guard fires first).
+    _git(repo, "remote", "add", "upstream", "https://github.com/Timeverse/My-TW-Coverage.git")
+    aged_theme_drift(repo)
     monkeypatch.chdir(repo)
-    # Commits, then refuses to push to a remote named 'upstream'.
     assert mod.main(["--commit", "--push", "--allow-nonmaster", "--remote", "upstream"]) == 1
     # The commit must have landed before the push was blocked.
     assert "themes/NEW.md" in _git(repo, "show", "--name-only", "--format=", "HEAD").stdout
 
 
-def test_push_to_timeverse_url_rejected(
-    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    # Remote NOT named 'upstream' but whose URL points at Timeverse: only the
-    # URL guard (not the name guard) can catch this.
-    bare = tmp_path / "timeverse-mirror.git"
-    subprocess.run(["git", "init", "--bare", "-q", str(bare)], check=True)
-    _git(repo, "remote", "add", "myfork", str(bare))
-    new = repo / "themes" / "NEW.md"
-    new.write_text("x\n", encoding="utf-8")
-    _age(new)
+def test_push_to_timeverse_url_rejected(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Resolved-URL guard: a remote NOT named 'upstream' whose stored URL is a real
+    # Timeverse org URL must still be refused (the name/arg guards do not fire).
+    _git(repo, "remote", "add", "myfork", "https://github.com/Timeverse/My-TW-Coverage.git")
+    aged_theme_drift(repo)
     monkeypatch.chdir(repo)
     assert mod.main(["--commit", "--push", "--allow-nonmaster", "--remote", "myfork"]) == 1
+
+
+def test_push_to_direct_timeverse_url_rejected(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Argument guard: a bare URL (not a named remote) passed to --remote must be
+    # refused before git ever runs.
+    aged_theme_drift(repo)
+    monkeypatch.chdir(repo)
+    assert mod.main(
+        ["--commit", "--push", "--allow-nonmaster", "--remote",
+         "https://github.com/Timeverse/My-TW-Coverage.git"]
+    ) == 1
+
+
+def test_deleted_file_does_not_block_quiesce(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A drift consisting of a deletion must not be treated as a fresh write.
+    (repo / "themes" / "AI.md").unlink()
+    monkeypatch.chdir(repo)
+    assert mod.main(["--commit", "--allow-nonmaster"]) == 0
+    assert "themes/AI.md" not in os.listdir(repo / "themes")

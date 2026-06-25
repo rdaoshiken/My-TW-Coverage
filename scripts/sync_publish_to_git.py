@@ -41,13 +41,17 @@ class SyncError(RuntimeError):
 
 
 def _run(args: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        args,
-        cwd=str(cwd),
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    try:
+        result = subprocess.run(
+            args,
+            cwd=str(cwd),
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except OSError as exc:
+        # e.g. git not installed / not on PATH — fail cleanly, no traceback.
+        raise SyncError(f"failed to run '{args[0]}': {exc}") from exc
     if check and result.returncode != 0:
         message = (result.stderr or "").strip() or f"command failed: {' '.join(args)}"
         raise SyncError(message)
@@ -117,8 +121,13 @@ def _newest_mtime(root: Path, paths: list[str]) -> float:
         absolute = root / path
         try:
             newest = max(newest, absolute.stat().st_mtime)
+        except FileNotFoundError:
+            # Deleted/renamed — no longer on disk, so it cannot be actively
+            # written to; it must not count as a fresh write (else a drift that
+            # includes a deletion would block the quiesce guard forever).
+            continue
         except OSError:
-            # Deleted/renamed during a publish — treat as freshly changing.
+            # Other OS errors — treat as freshly changing (conservative).
             newest = max(newest, time.time())
     return newest
 
@@ -167,14 +176,23 @@ def _do_commit(root: Path, themes: list[str], reports: int) -> None:
 
 
 def _do_push(root: Path, branch: str, remote: str) -> None:
-    if remote == READONLY_REMOTE:
-        raise SyncError(f"refusing to push to read-only remote '{READONLY_REMOTE}'")
-    # Name guard is not enough: refuse by URL too, so an upstream aliased under
-    # any other name cannot be pushed to.
-    url = _run(["git", "remote", "get-url", remote], cwd=root, check=False).stdout.strip()
-    if "timeverse" in url.lower():
+    # Best-effort guard (NOT airtight): it matches the literal "timeverse"
+    # substring. Git URL rewrites ([url] insteadOf) and opaque aliases that
+    # resolve to the upstream at transport time are out of scope; this only
+    # blocks obvious misuse, it is not a security boundary.
+    #
+    # ``remote`` may be a named remote OR a bare URL (git push accepts both), so
+    # guard the argument itself first — a direct Timeverse URL is not a named
+    # remote and would otherwise slip past the URL check below.
+    if remote == READONLY_REMOTE or "timeverse" in remote.lower():
+        raise SyncError(f"refusing to push to read-only target '{remote}'")
+    # Then resolve the named remote's URL (only if it IS a named remote) and
+    # refuse an upstream aliased under any other name.
+    url_res = _run(["git", "remote", "get-url", remote], cwd=root, check=False)
+    if url_res.returncode == 0 and "timeverse" in url_res.stdout.strip().lower():
         raise SyncError(
-            f"refusing to push: remote '{remote}' -> {url} is the read-only upstream."
+            f"refusing to push: remote '{remote}' -> {url_res.stdout.strip()} "
+            "is the read-only upstream."
         )
     _run(["git", "push", remote, branch], cwd=root)
 
