@@ -9,3 +9,9 @@ venv/
 _temp_fix_*.py
 enrichment*.json
 .claude/settings.local.json
+
+
+
+
+# Ignore Smart Environment folder
+.smart-env
