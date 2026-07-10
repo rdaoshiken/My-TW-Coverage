@@ -21,117 +21,114 @@ from collections import defaultdict
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "..", "Pilot_Reports")
 THEMES_DIR = os.path.join(os.path.dirname(__file__), "..", "themes")
 
+# Hand-authored "**相關主題:** [[X]]" lines on existing theme pages are curated
+# ground truth (they feed Cortex's coverage_theme_relation table, Cortex #802)
+# and must survive a rebuild verbatim. Both halfwidth and fullwidth colons are
+# accepted, matching the Cortex ETL parser.
+RELATED_LINE_PATTERN = re.compile(r"^\*\*相關主題[：:]\*\*.*$", re.MULTILINE)
+
+
+def extract_related_line(theme_filepath):
+    """Return the existing hand-authored 相關主題 line of a theme page, or None."""
+    if not os.path.exists(theme_filepath):
+        return None
+    with open(theme_filepath, "r", encoding="utf-8") as f:
+        match = RELATED_LINE_PATTERN.search(f.read())
+    return match.group(0) if match else None
+
 # Curated themes with supply chain role hints
-# Format: theme_wikilink -> { display_name, description, related_tags }
+# Format: theme_wikilink -> { display_name, description }
+# NOTE: theme-to-theme links live ONLY on the theme pages themselves
+# (the hand-curated "**相關主題:** [[X]]" line) — never defined here.
 THEME_DEFINITIONS = {
     # === Advanced Packaging ===
     "CoWoS": {
         "name": "CoWoS 先進封裝",
         "desc": "台積電 Chip-on-Wafer-on-Substrate 2.5D 先進封裝技術，AI 晶片關鍵製程",
-        "related": ["HBM", "2.5D 封裝", "3D 封裝", "ABF 載板", "矽中介層"],
     },
     "HBM": {
         "name": "HBM 高頻寬記憶體",
         "desc": "High Bandwidth Memory，AI 加速器必備的高速堆疊記憶體",
-        "related": ["CoWoS", "AI 伺服器", "DRAM"],
     },
     "CPO": {
         "name": "CPO 共封裝光學",
         "desc": "Co-Packaged Optics，將光學元件整合於晶片封裝中以突破頻寬瓶頸",
-        "related": ["矽光子", "光收發模組", "AI 伺服器", "資料中心"],
     },
     # === Photonics ===
     "矽光子": {
         "name": "矽光子 Silicon Photonics",
         "desc": "以矽基製程整合光學元件，實現高速光互連，下一代資料中心核心技術",
-        "related": ["CPO", "EML", "VCSEL", "光收發模組", "資料中心"],
     },
     "VCSEL": {
         "name": "VCSEL 垂直共振腔面射型雷射",
         "desc": "3D 感測、光通訊及 LiDAR 核心光源元件",
-        "related": ["矽光子", "光收發模組", "砷化鎵"],
     },
     # === Compound Semiconductors ===
     "碳化矽": {
         "name": "碳化矽 SiC",
         "desc": "第三代半導體材料，耐高壓高溫，電動車逆變器及充電樁關鍵材料",
-        "related": ["電動車", "MOSFET", "IGBT", "氮化鎵"],
     },
     "氮化鎵": {
         "name": "氮化鎵 GaN",
         "desc": "第三代半導體材料，高頻高效，5G 基站、快充及衛星通訊核心",
-        "related": ["5G", "碳化矽", "磷化銦"],
     },
     "磷化銦": {
         "name": "磷化銦 InP",
         "desc": "III-V 族化合物半導體，光通訊雷射及高速光電元件基板材料",
-        "related": ["矽光子", "EML", "光收發模組", "砷化鎵"],
     },
     # === AI / Data Center ===
     "AI 伺服器": {
         "name": "AI 伺服器供應鏈",
         "desc": "AI 訓練與推論伺服器完整供應鏈，從晶片到系統到散熱",
-        "related": ["CoWoS", "HBM", "NVIDIA", "CPO", "資料中心"],
     },
     "資料中心": {
         "name": "資料中心供應鏈",
         "desc": "超大規模資料中心基礎設施，涵蓋伺服器、網通、電源、散熱",
-        "related": ["AI 伺服器", "CPO", "矽光子", "PCB"],
     },
     # === EV / Automotive ===
     "電動車": {
         "name": "電動車供應鏈",
         "desc": "電動車完整供應鏈，從電池材料到功率元件到車用電子",
-        "related": ["碳化矽", "IGBT", "MOSFET", "車用電子"],
     },
     # === Applications ===
     "5G": {
         "name": "5G 通訊供應鏈",
         "desc": "5G 基礎建設與終端應用，涵蓋基站、天線、射頻前端、濾波器",
-        "related": ["氮化鎵", "RF", "低軌衛星"],
     },
     "低軌衛星": {
         "name": "低軌衛星 LEO Satellite",
         "desc": "低軌道衛星通訊供應鏈，天線、地面站、射頻模組",
-        "related": ["5G", "氮化鎵", "RF"],
     },
     # === Process / Equipment ===
     "EUV": {
         "name": "EUV 極紫外光微影",
         "desc": "先進製程關鍵微影技術，7nm 以下節點必備",
-        "related": ["光阻液", "ASML"],
     },
     # === Materials ===
     "光阻液": {
         "name": "光阻液 Photoresist",
         "desc": "半導體微影製程關鍵化學材料",
-        "related": ["EUV", "微影"],
     },
     "ABF 載板": {
         "name": "ABF 載板",
         "desc": "Ajinomoto Build-up Film 載板，高階 IC 封裝基板",
-        "related": ["CoWoS", "AI 伺服器", "PCB"],
     },
     "矽晶圓": {
         "name": "矽晶圓",
         "desc": "半導體製造最基礎的原材料",
-        "related": ["碳化矽", "磊晶"],
     },
     # === Key customers (cross-industry) ===
     "Apple": {
         "name": "Apple 蘋果供應鏈",
         "desc": "蘋果公司台灣供應鏈成員",
-        "related": ["台積電", "鴻海"],
     },
     "NVIDIA": {
         "name": "NVIDIA 輝達供應鏈",
         "desc": "NVIDIA GPU 及 AI 平台台灣供應鏈",
-        "related": ["CoWoS", "HBM", "AI 伺服器", "台積電"],
     },
     "Tesla": {
         "name": "Tesla 特斯拉供應鏈",
         "desc": "特斯拉電動車台灣供應鏈成員",
-        "related": ["電動車", "碳化矽"],
     },
 }
 
@@ -195,8 +192,13 @@ def scan_wikilinks():
     return wl_map
 
 
-def build_theme_page(theme_tag, theme_def, wl_map):
-    """Build a single theme markdown page."""
+def build_theme_page(theme_tag, theme_def, wl_map, existing_related_line=None):
+    """Build a single theme markdown page.
+
+    existing_related_line: the hand-curated 相關主題 line from the current
+    page, carried over verbatim. The page is the single source of truth for
+    theme-to-theme links; rebuilds never synthesize or alter this line.
+    """
     entries = wl_map.get(theme_tag, [])
     if not entries:
         return None
@@ -209,15 +211,11 @@ def build_theme_page(theme_tag, theme_def, wl_map):
     lines.append(f"**涵蓋公司數:** {len(entries)}")
     lines.append("")
 
-    # Related themes
-    related = theme_def.get("related", [])
-    related_with_counts = []
-    for r in related:
-        count = len(wl_map.get(r, []))
-        if count > 0:
-            related_with_counts.append(f"[[{r}]] ({count})")
-    if related_with_counts:
-        lines.append(f"**相關主題:** {' | '.join(related_with_counts)}")
+    # Related themes: the page itself is the single source of truth — a
+    # hand-curated line is carried over verbatim, and the script never
+    # synthesizes one (theme-to-theme links are Obsidian-curated only).
+    if existing_related_line is not None:
+        lines.append(existing_related_line)
         lines.append("")
 
     lines.append("---")
@@ -334,10 +332,11 @@ def main():
 
     themes_built = {}
     for tag, defn in themes_to_build.items():
-        page = build_theme_page(tag, defn, wl_map)
+        safe_name = tag.replace(" ", "_").replace("/", "_")
+        filepath = os.path.join(THEMES_DIR, f"{safe_name}.md")
+        existing_related_line = extract_related_line(filepath)
+        page = build_theme_page(tag, defn, wl_map, existing_related_line)
         if page:
-            safe_name = tag.replace(" ", "_").replace("/", "_")
-            filepath = os.path.join(THEMES_DIR, f"{safe_name}.md")
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(page)
             count = len(wl_map.get(tag, []))
