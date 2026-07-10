@@ -138,3 +138,29 @@ def test_related_line_preserved_in_build_theme_page() -> None:
     )
     assert related in page          # carried over verbatim
     assert page.count(related) == 1  # not duplicated / synthesized
+
+
+def test_h3_inside_supply_chain_stays_in_scope():
+    """H3 subheadings belong to their parent H2 section (review HIGH-1)."""
+    content = (
+        "## 供應鏈位置\n\n**上游 (原料):**\n- 原料商\n\n"
+        "### 細分子段\n- [[H3內題材]] 相關佈局\n\n"
+        "## 財務概況\n- [[財務段題材]] 不可入\n"
+    )
+    memberships, unparsed = mod._derive_memberships(content)
+    assert "H3內題材" in memberships  # still supply-chain scope
+    assert "財務段題材" not in memberships  # other H2 closes the section
+    assert unparsed is False
+
+
+def test_empty_content_degrades_gracefully():
+    """Error case (review MEDIUM-2): empty/whitespace reports never crash."""
+    assert mod._derive_memberships("") == ({}, False)
+    assert mod._derive_memberships("   \n\n") == ({}, False)
+
+
+def test_unclosed_wikilink_is_not_a_member():
+    """Error case (review MEDIUM-2): malformed [[unclosed token is ignored."""
+    content = "## 供應鏈位置\n\n**中游:**\n- [[未閉合題材 佈局中\n"
+    memberships, _ = mod._derive_memberships(content)
+    assert memberships == {}

@@ -34,10 +34,6 @@ WIKILINK_PATTERN = re.compile(r"\[\[([^\]]+)\]\]")
 # ~248 reports use the bulleted form, which a ^-anchored pattern would wrongly
 # degrade to 'related'. Non-anchored reproduces the prototype's measurements
 # (13 unparsed reports). Heading-style tier labels do not occur in the corpus.
-TIER_LABEL_PATTERN = re.compile(
-    r"\*\*\s*(上游|中游|下游|Upstream|Midstream|Downstream)"
-)
-
 # A tier keyword names the COMPANY's own position in ITS chain.
 _COMPANY_TIER_BY_LABEL = {
     "上游": "upstream",
@@ -47,6 +43,10 @@ _COMPANY_TIER_BY_LABEL = {
     "Midstream": "midstream",
     "Downstream": "downstream",
 }
+
+TIER_LABEL_PATTERN = re.compile(
+    r"\*\*\s*(" + "|".join(re.escape(label) for label in _COMPANY_TIER_BY_LABEL) + ")"
+)
 
 # Variant I (chain-perspective inversion): a report describes the company's own
 # chain, so a theme wikilink's company-tier maps to the THEME's tier by inversion.
@@ -180,16 +180,17 @@ THEME_DEFINITIONS = {
 def _split_sections(content: str) -> dict[str, str]:
     """Split report markdown into desc / supply_chain / customers by H2 headings.
 
-    Only the three named H2 sections are captured; every other H2 (財務概況 …)
-    and all H3 subheadings terminate the current section. ``desc`` and
-    ``customers`` are returned for potential future use but no longer feed
-    membership (section-filtered membership reads ``supply_chain`` only).
+    Only H2 headings switch sections: the three named ones open their buffer,
+    any other H2 (財務概況 …) closes the current one. H3 subheadings belong to
+    their parent section — content under an H3 inside 供應鏈位置 is still
+    supply-chain content. ``desc`` and ``customers`` are returned for potential
+    future use but no longer feed membership.
     """
     sections = {"desc": "", "supply_chain": "", "customers": ""}
     buffers: dict[str, list[str]] = {key: [] for key in sections}
     current: str | None = None
     for line in content.splitlines():
-        if line.startswith("## ") and not line.startswith("### "):
+        if line.startswith("## "):
             heading = line[3:].strip()
             if heading.startswith("業務簡介"):
                 current = "desc"
