@@ -13,6 +13,8 @@ Usage:
 Output: themes/ folder with one .md per theme.
 """
 
+from __future__ import annotations
+
 import os
 import re
 import sys
@@ -20,6 +22,48 @@ from collections import defaultdict
 
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "..", "Pilot_Reports")
 THEMES_DIR = os.path.join(os.path.dirname(__file__), "..", "themes")
+
+# Bracket wikilink token, shared by every scan. Kept module-level (not inline)
+# so membership and role derivation match the same token grammar as Cortex's
+# coverage_etl.py wikilink parser (Cortex #802).
+WIKILINK_PATTERN = re.compile(r"\[\[([^\]]+)\]\]")
+
+# A supply-chain tier label is a bold tier keyword, e.g. "**上游 (金屬材料):**"
+# or the bulleted form "*   **中游 (本體)**:" — bracketed annotations and English
+# variants tolerated. Deliberately NOT line-anchored (user ruling 2026-07-11):
+# ~248 reports use the bulleted form, which a ^-anchored pattern would wrongly
+# degrade to 'related'. Non-anchored reproduces the prototype's measurements
+# (13 unparsed reports). Heading-style tier labels do not occur in the corpus.
+TIER_LABEL_PATTERN = re.compile(
+    r"\*\*\s*(上游|中游|下游|Upstream|Midstream|Downstream)"
+)
+
+# A tier keyword names the COMPANY's own position in ITS chain.
+_COMPANY_TIER_BY_LABEL = {
+    "上游": "upstream",
+    "中游": "midstream",
+    "下游": "downstream",
+    "Upstream": "upstream",
+    "Midstream": "midstream",
+    "Downstream": "downstream",
+}
+
+# Variant I (chain-perspective inversion): a report describes the company's own
+# chain, so a theme wikilink's company-tier maps to the THEME's tier by inversion.
+#   company downstream (theme is its end-application) -> company supplies theme  -> theme upstream
+#   company upstream   (theme is its raw input)       -> company consumes theme  -> theme downstream
+#   company midstream  (the theme IS its own business)                           -> theme midstream
+#   before any tier label ("pre")                                               -> related
+_THEME_ROLE_BY_COMPANY_TIER = {
+    "downstream": "upstream",
+    "upstream": "downstream",
+    "midstream": "midstream",
+    "pre": "related",
+}
+
+# Cross-tier tie-break when one theme is hit under several tiers in one report:
+# self-identity (midstream) is the strongest signal, related the weakest.
+_ROLE_PRIORITY = {"midstream": 0, "upstream": 1, "downstream": 2, "related": 3}
 
 # Hand-authored "**相關主題:** [[X]]" lines on existing theme pages are curated
 # ground truth (they feed Cortex's coverage_theme_relation table, Cortex #802)
@@ -133,9 +177,93 @@ THEME_DEFINITIONS = {
 }
 
 
-def scan_wikilinks():
-    """Scan all reports, return {wikilink: [(ticker, company, sector, context)]}."""
-    wl_map = defaultdict(list)
+def _split_sections(content: str) -> dict[str, str]:
+    """Split report markdown into desc / supply_chain / customers by H2 headings.
+
+    Only the three named H2 sections are captured; every other H2 (財務概況 …)
+    and all H3 subheadings terminate the current section. ``desc`` and
+    ``customers`` are returned for potential future use but no longer feed
+    membership (section-filtered membership reads ``supply_chain`` only).
+    """
+    sections = {"desc": "", "supply_chain": "", "customers": ""}
+    buffers: dict[str, list[str]] = {key: [] for key in sections}
+    current: str | None = None
+    for line in content.splitlines():
+        if line.startswith("## ") and not line.startswith("### "):
+            heading = line[3:].strip()
+            if heading.startswith("業務簡介"):
+                current = "desc"
+            elif heading.startswith("供應鏈位置"):
+                current = "supply_chain"
+            elif heading.startswith("主要客戶及供應商"):
+                current = "customers"
+            else:
+                current = None
+            continue
+        if current is not None:
+            buffers[current].append(line)
+    for key in sections:
+        sections[key] = "\n".join(buffers[key])
+    return sections
+
+
+def _split_supply_chain_tiers(sc_text: str) -> list[tuple[str, str]]:
+    """Split a 供應鏈位置 section into ``(company_tier, segment_text)`` slices.
+
+    Segments are delimited by bold tier labels. Text before the first label is
+    tagged ``"pre"``. A section with no tier label at all yields a single
+    ``[("pre", sc_text)]`` — the caller records such reports as unparsed.
+    """
+    matches = list(TIER_LABEL_PATTERN.finditer(sc_text))
+    if not matches:
+        return [("pre", sc_text)]
+
+    segments: list[tuple[str, str]] = []
+    leading = sc_text[: matches[0].start()]
+    if leading.strip():
+        segments.append(("pre", leading))
+    for index, match in enumerate(matches):
+        tier = _COMPANY_TIER_BY_LABEL[match.group(1)]
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(sc_text)
+        segments.append((tier, sc_text[match.start():end]))
+    return segments
+
+
+def _derive_memberships(content: str) -> tuple[dict[str, str], bool]:
+    """Derive ``{theme: role}`` memberships from one report's markdown.
+
+    Only bracket wikilinks inside the 供應鏈位置 section count. Each theme's
+    company-tier is inverted to a theme-role (Variant I); a theme hit under
+    several tiers collapses to its highest-priority role, so every report
+    contributes at most one row per theme. Returns the membership map and a
+    flag marking reports whose SC section had no parseable tier labels.
+    """
+    sections = _split_sections(content)
+    sc_text = sections["supply_chain"]
+    segments = _split_supply_chain_tiers(sc_text)
+    has_real_tier = any(tier != "pre" for tier, _ in segments)
+    is_unparsed = bool(sc_text.strip()) and not has_real_tier
+
+    theme_role: dict[str, str] = {}
+    for tier, segment_text in segments:
+        role = _THEME_ROLE_BY_COMPANY_TIER[tier]
+        for theme in set(WIKILINK_PATTERN.findall(segment_text)):
+            previous = theme_role.get(theme)
+            if previous is None or _ROLE_PRIORITY[role] < _ROLE_PRIORITY[previous]:
+                theme_role[theme] = role
+    return theme_role, is_unparsed
+
+
+def scan_wikilinks() -> dict[str, list[dict[str, str]]]:
+    """Scan all reports, return ``{theme: [{ticker, company, sector, role}]}``.
+
+    Membership is section-filtered (供應鏈位置 bracket wikilinks only) with
+    Variant I role inversion. Reports whose SC section lacks tier labels have
+    their themes degraded to ``related`` and are surfaced in a warning log — the
+    degradation is never silent.
+    """
+    wl_map: dict[str, list[dict[str, str]]] = defaultdict(list)
+    unparsed_reports: list[tuple[str, str, str]] = []
 
     for sector_dir in os.listdir(REPORTS_DIR):
         sector_path = os.path.join(REPORTS_DIR, sector_dir)
@@ -152,35 +280,11 @@ def scan_wikilinks():
             with open(filepath, "r", encoding="utf-8") as fh:
                 content = fh.read()
 
-            # Split content into sections for context
-            sections = {
-                "desc": "",
-                "supply_chain": "",
-                "customers": "",
-            }
-            parts = re.split(r"## ", content)
-            for part in parts:
-                if part.startswith("業務簡介"):
-                    sections["desc"] = part
-                elif part.startswith("供應鏈位置"):
-                    sections["supply_chain"] = part
-                elif part.startswith("主要客戶及供應商"):
-                    sections["customers"] = part
-
-            # Find all wikilinks in non-financial sections
-            text = sections["desc"] + sections["supply_chain"] + sections["customers"]
-            for wl in set(re.findall(r"\[\[([^\]]+)\]\]", text)):
-                # Determine role from context
-                role = "related"
-                if wl in sections["supply_chain"]:
-                    if "上游" in sections["supply_chain"].split(wl)[0][-100:]:
-                        role = "upstream"
-                    elif "下游" in sections["supply_chain"].split(wl)[0][-100:]:
-                        role = "downstream"
-                    elif "中游" in sections["supply_chain"].split(wl)[0][-100:]:
-                        role = "midstream"
-
-                wl_map[wl].append(
+            memberships, is_unparsed = _derive_memberships(content)
+            if is_unparsed:
+                unparsed_reports.append((ticker, company, sector_dir))
+            for theme, role in memberships.items():
+                wl_map[theme].append(
                     {
                         "ticker": ticker,
                         "company": company,
@@ -188,6 +292,14 @@ def scan_wikilinks():
                         "role": role,
                     }
                 )
+
+    if unparsed_reports:
+        print(
+            f"\n[warn] {len(unparsed_reports)} report(s) have a 供應鏈位置 section "
+            "with no parseable tier label; their themes degraded to 'related':"
+        )
+        for ticker, company, sector_dir in sorted(unparsed_reports):
+            print(f"  - {ticker} {company} ({sector_dir})")
 
     return wl_map
 
