@@ -164,3 +164,15 @@ def test_unclosed_wikilink_is_not_a_member():
     content = "## 供應鏈位置\n\n**中游:**\n- [[未閉合題材 佈局中\n"
     memberships, _ = mod._derive_memberships(content)
     assert memberships == {}
+
+
+def test_english_tier_labels_case_insensitive():
+    """Gemini PR #6: **UPSTREAM**/**downstream** variants parse, no KeyError."""
+    content = (
+        "## 供應鏈位置\n\n**UPSTREAM:**\n- [[大寫題材]]\n\n"
+        "**downstream (apps):**\n- [[小寫題材]]\n"
+    )
+    memberships, unparsed = mod._derive_memberships(content)
+    assert memberships["大寫題材"] == "downstream"  # company upstream -> theme downstream
+    assert memberships["小寫題材"] == "upstream"    # company downstream -> theme upstream
+    assert unparsed is False

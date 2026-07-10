@@ -39,13 +39,16 @@ _COMPANY_TIER_BY_LABEL = {
     "上游": "upstream",
     "中游": "midstream",
     "下游": "downstream",
-    "Upstream": "upstream",
-    "Midstream": "midstream",
-    "Downstream": "downstream",
+    "upstream": "upstream",
+    "midstream": "midstream",
+    "downstream": "downstream",
 }
 
+# English labels matched case-insensitively (Gemini review on PR #6); lookups
+# lowercase the captured group, which is a no-op for the Chinese keys.
 TIER_LABEL_PATTERN = re.compile(
-    r"\*\*\s*(" + "|".join(re.escape(label) for label in _COMPANY_TIER_BY_LABEL) + ")"
+    r"\*\*\s*(" + "|".join(re.escape(label) for label in _COMPANY_TIER_BY_LABEL) + ")",
+    re.IGNORECASE,
 )
 
 # Variant I (chain-perspective inversion): a report describes the company's own
@@ -224,7 +227,7 @@ def _split_supply_chain_tiers(sc_text: str) -> list[tuple[str, str]]:
     if leading.strip():
         segments.append(("pre", leading))
     for index, match in enumerate(matches):
-        tier = _COMPANY_TIER_BY_LABEL[match.group(1)]
+        tier = _COMPANY_TIER_BY_LABEL[match.group(1).lower()]
         end = matches[index + 1].start() if index + 1 < len(matches) else len(sc_text)
         segments.append((tier, sc_text[match.start():end]))
     return segments
