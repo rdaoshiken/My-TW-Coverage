@@ -81,7 +81,7 @@
 - **3048 益登** (Electronics & Computer Distribution)
 - **3709 鑫聯大投控** (Electronics & Computer Distribution)
 - **6227 茂綸** (Electronics & Computer Distribution)
-- **6776 展�眥篕�** (Electronics & Computer Distribution)
+- **6776 展碁國際** (Electronics & Computer Distribution)
 - **4550 長佳** (Engineering & Construction)
 - **5484 慧友** (Security & Protection Services)
 - **6231 系微** (Software - Application)
