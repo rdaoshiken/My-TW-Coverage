@@ -21,6 +21,21 @@ from collections import defaultdict
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "..", "Pilot_Reports")
 THEMES_DIR = os.path.join(os.path.dirname(__file__), "..", "themes")
 
+# Hand-authored "**相關主題:** [[X]]" lines on existing theme pages are curated
+# ground truth (they feed Cortex's coverage_theme_relation table, Cortex #802)
+# and must survive a rebuild verbatim. Both halfwidth and fullwidth colons are
+# accepted, matching the Cortex ETL parser.
+RELATED_LINE_PATTERN = re.compile(r"^\*\*相關主題[：:]\*\*.*$", re.MULTILINE)
+
+
+def extract_related_line(theme_filepath):
+    """Return the existing hand-authored 相關主題 line of a theme page, or None."""
+    if not os.path.exists(theme_filepath):
+        return None
+    with open(theme_filepath, "r", encoding="utf-8") as f:
+        match = RELATED_LINE_PATTERN.search(f.read())
+    return match.group(0) if match else None
+
 # Curated themes with supply chain role hints
 # Format: theme_wikilink -> { display_name, description, related_tags }
 THEME_DEFINITIONS = {
@@ -195,8 +210,13 @@ def scan_wikilinks():
     return wl_map
 
 
-def build_theme_page(theme_tag, theme_def, wl_map):
-    """Build a single theme markdown page."""
+def build_theme_page(theme_tag, theme_def, wl_map, existing_related_line=None):
+    """Build a single theme markdown page.
+
+    existing_related_line: a hand-authored 相關主題 line from the current page,
+    preserved verbatim in place of the THEME_DEFINITIONS-derived one so curated
+    theme bindings are never clobbered by a rebuild.
+    """
     entries = wl_map.get(theme_tag, [])
     if not entries:
         return None
@@ -209,16 +229,21 @@ def build_theme_page(theme_tag, theme_def, wl_map):
     lines.append(f"**涵蓋公司數:** {len(entries)}")
     lines.append("")
 
-    # Related themes
-    related = theme_def.get("related", [])
-    related_with_counts = []
-    for r in related:
-        count = len(wl_map.get(r, []))
-        if count > 0:
-            related_with_counts.append(f"[[{r}]] ({count})")
-    if related_with_counts:
-        lines.append(f"**相關主題:** {' | '.join(related_with_counts)}")
+    # Related themes: a hand-authored line wins verbatim over the
+    # THEME_DEFINITIONS-derived default.
+    if existing_related_line is not None:
+        lines.append(existing_related_line)
         lines.append("")
+    else:
+        related = theme_def.get("related", [])
+        related_with_counts = []
+        for r in related:
+            count = len(wl_map.get(r, []))
+            if count > 0:
+                related_with_counts.append(f"[[{r}]] ({count})")
+        if related_with_counts:
+            lines.append(f"**相關主題:** {' | '.join(related_with_counts)}")
+            lines.append("")
 
     lines.append("---")
     lines.append("")
@@ -334,10 +359,11 @@ def main():
 
     themes_built = {}
     for tag, defn in themes_to_build.items():
-        page = build_theme_page(tag, defn, wl_map)
+        safe_name = tag.replace(" ", "_").replace("/", "_")
+        filepath = os.path.join(THEMES_DIR, f"{safe_name}.md")
+        existing_related_line = extract_related_line(filepath)
+        page = build_theme_page(tag, defn, wl_map, existing_related_line)
         if page:
-            safe_name = tag.replace(" ", "_").replace("/", "_")
-            filepath = os.path.join(THEMES_DIR, f"{safe_name}.md")
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(page)
             count = len(wl_map.get(tag, []))
