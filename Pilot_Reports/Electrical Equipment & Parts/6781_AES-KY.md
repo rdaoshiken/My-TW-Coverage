@@ -11,7 +11,7 @@ AES-KY (6781) 為[[新普科技]]子公司，台灣AI [[BBU]]龍頭。已打入[
 ## 供應鏈位置
 **上游:** [[Panasonic]] 電芯
 **中游:** **AES-KY** ([[BBU]]/E-bike電池)
-**下游:** [[AWS]]、[[Meta]]、[[Microsoft]] — [[BBU]]
+**下游:** [[AWS]]、[[Meta]]、[[Microsoft]] — [[BBU]]、[[NVIDIA]]
 
 ## 主要客戶及供應商
 ### 主要客戶
