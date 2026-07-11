@@ -74,6 +74,50 @@ _ROLE_PRIORITY = {"midstream": 0, "upstream": 1, "downstream": 2, "related": 3}
 # accepted, matching the Cortex ETL parser.
 RELATED_LINE_PATTERN = re.compile(r"^\*\*相關主題[：:]\*\*.*$", re.MULTILINE)
 
+# Admin-curated member preservation (Cortex #833/#834 companion). Two hand/API
+# edits on a theme page survive a rebuild, extending the same page-is-SSOT
+# philosophy already applied to the 相關主題 line (PR #5):
+#
+#   1. A member line annotated exactly ``(人工)`` — e.g. ``- **6435 大中** (人工)``
+#      — is an admin addition (Cortex's theme-edit API, #834). On rebuild it is
+#      carried over verbatim, in the SAME role section it currently sits in
+#      (the admin may have set-role'd it), and it OVERRIDES any derived entry for
+#      the same ticker (admin intent beats derivation). Exactly one line/ticker.
+#
+#   2. An optional page-level ``**人工排除:** [[DDDD]] [[DDDD]] ...`` line lists
+#      ticker wikilinks that must be SUPPRESSED from the derived membership on
+#      rebuild — this is how an admin DELETE of a derived member sticks. The line
+#      is carried over verbatim (like 相關主題). Precedence: a ticker that is BOTH
+#      manually re-added (rule 1) AND listed here is KEPT (add beats exclude).
+#
+# 人工排除 uses the same wikilink grammar family as 相關主題. NOTE for the Cortex
+# ETL (coverage_etl.py _parse_themes): 相關主題 is explicitly recognised and
+# skipped before the fallback wikilink scan, so its links never become members;
+# 人工排除 must be given the same explicit-skip treatment there before Cortex's
+# API starts emitting it, otherwise its bare [[DDDD]] wikilinks are re-ingested
+# as memberships by the fallback (coverage_etl.py ~616-629) and the exclusion is
+# self-defeating. Cortex does not write this line yet — that skip + the API
+# writer are the tracked follow-up; the rebuild semantics land here first.
+MANUAL_ANNOTATION = "人工"
+# 4-6 digits mirrors the Cortex ETL/editor member grammar (coverage_etl.py
+# theme_member_pattern) rather than this repo's 4-digit filename convention —
+# the API may write tickers this corpus has no report file for yet.
+MANUAL_MEMBER_PATTERN = re.compile(
+    r"^- \*\*(\d{4,6}) .+?\*\* \(" + MANUAL_ANNOTATION + r"\)\s*$"
+)
+EXCLUDE_LINE_PATTERN = re.compile(r"^\*\*人工排除[：:]\*\*.*$", re.MULTILINE)
+
+# Reverse of the rendered role-section headers, used to recover which section an
+# existing manual line sits in. ``相關公司`` is the rendered header for the
+# ``related`` role; an exact bare-``相關`` header token is also accepted.
+_ROLE_BY_SECTION_HEADER = {
+    "上游": "upstream",
+    "中游": "midstream",
+    "下游": "downstream",
+    "相關公司": "related",
+    "相關": "related",
+}
+
 
 def extract_related_line(theme_filepath):
     """Return the existing hand-authored 相關主題 line of a theme page, or None."""
@@ -82,6 +126,60 @@ def extract_related_line(theme_filepath):
     with open(theme_filepath, "r", encoding="utf-8") as f:
         match = RELATED_LINE_PATTERN.search(f.read())
     return match.group(0) if match else None
+
+
+def extract_manual_edits(
+    theme_filepath: str,
+) -> tuple[dict[str, list[tuple[str, str]]], str | None]:
+    """Return admin edits carried over from an existing theme page.
+
+    Returns ``(manual_by_role, exclude_line)`` where ``manual_by_role`` maps a
+    role key (``upstream``/``midstream``/``downstream``/``related``) to a list of
+    ``(ticker, verbatim_line)`` for every member line annotated ``(人工)`` in that
+    section, and ``exclude_line`` is the verbatim ``**人工排除:** ...`` line if one
+    is present (else ``None``). A missing page yields ``({}, None)``.
+    """
+    manual_by_role: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    exclude_line: str | None = None
+    if not os.path.exists(theme_filepath):
+        return {}, None
+
+    with open(theme_filepath, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    exclude_match = EXCLUDE_LINE_PATTERN.search(content)
+    if exclude_match:
+        exclude_line = exclude_match.group(0)
+
+    current_role: str | None = None
+    seen_tickers: set[str] = set()
+    for line in content.splitlines():
+        if line.startswith("## "):
+            header_keyword = line[3:].strip().split(" ")[0]
+            current_role = _ROLE_BY_SECTION_HEADER.get(header_keyword)
+            continue
+        member_match = MANUAL_MEMBER_PATTERN.match(line)
+        if not member_match:
+            continue
+        if current_role is None:
+            # Never drop curated data silently (mirrors the unparsed-report
+            # warning convention in scan_wikilinks).
+            print(
+                f"[warn] {theme_filepath}: manual line under an unrecognized "
+                f"section header was NOT preserved: {line}"
+            )
+            continue
+        ticker = member_match.group(1)
+        if ticker in seen_tickers:
+            print(
+                f"[warn] {theme_filepath}: duplicate manual line for {ticker} "
+                "ignored (first occurrence wins)"
+            )
+            continue
+        seen_tickers.add(ticker)
+        manual_by_role[current_role].append((ticker, line))
+
+    return dict(manual_by_role), exclude_line
 
 # Curated themes with supply chain role hints
 # Format: theme_wikilink -> { display_name, description }
@@ -308,15 +406,48 @@ def scan_wikilinks() -> dict[str, list[dict[str, str]]]:
     return wl_map
 
 
-def build_theme_page(theme_tag, theme_def, wl_map, existing_related_line=None):
+def build_theme_page(
+    theme_tag: str,
+    theme_def: dict,
+    wl_map: dict,
+    existing_related_line: str | None = None,
+    manual_by_role: dict[str, list[tuple[str, str]]] | None = None,
+    exclude_line: str | None = None,
+) -> str | None:
     """Build a single theme markdown page.
 
     existing_related_line: the hand-curated 相關主題 line from the current
     page, carried over verbatim. The page is the single source of truth for
     theme-to-theme links; rebuilds never synthesize or alter this line.
+
+    manual_by_role / exclude_line: admin edits carried over from the existing
+    page (see ``extract_manual_edits``). Manual ``(人工)`` member lines override
+    the derived entry for the same ticker and are emitted verbatim in their
+    section; tickers named on the ``**人工排除:**`` line are dropped from the
+    derived membership, except any that are also manually re-added (add beats
+    exclude). Both default to no-op so a page with neither reproduces the plain
+    derivation byte-for-byte.
     """
     entries = wl_map.get(theme_tag, [])
-    if not entries:
+    manual_by_role = manual_by_role or {}
+
+    manual_tickers = {
+        ticker for role_lines in manual_by_role.values() for ticker, _ in role_lines
+    }
+    # Excluded tickers suppress derived entries, but a manual re-add wins over an
+    # exclusion (documented precedence: add beats exclude).
+    exclude_tickers = set(WIKILINK_PATTERN.findall(exclude_line)) if exclude_line else set()
+    exclude_tickers -= manual_tickers
+
+    # Derived entries that survive the merge: neither excluded nor overridden by
+    # a manual line for the same ticker.
+    surviving = [
+        e
+        for e in entries
+        if e["ticker"] not in exclude_tickers and e["ticker"] not in manual_tickers
+    ]
+    total = len(surviving) + sum(len(v) for v in manual_by_role.values())
+    if total == 0:
         return None
 
     lines = []
@@ -324,7 +455,7 @@ def build_theme_page(theme_tag, theme_def, wl_map, existing_related_line=None):
     lines.append("")
     lines.append(f"> {theme_def['desc']}")
     lines.append("")
-    lines.append(f"**涵蓋公司數:** {len(entries)}")
+    lines.append(f"**涵蓋公司數:** {total}")
     lines.append("")
 
     # Related themes: the page itself is the single source of truth — a
@@ -334,19 +465,19 @@ def build_theme_page(theme_tag, theme_def, wl_map, existing_related_line=None):
         lines.append(existing_related_line)
         lines.append("")
 
+    # Manual exclusions: carried over verbatim after the 相關主題 line position,
+    # same as the hand-curated relation line above.
+    if exclude_line is not None:
+        lines.append(exclude_line)
+        lines.append("")
+
     lines.append("---")
     lines.append("")
 
-    # Group by role
-    upstream = [e for e in entries if e["role"] == "upstream"]
-    midstream = [e for e in entries if e["role"] == "midstream"]
-    downstream = [e for e in entries if e["role"] == "downstream"]
-    other = [e for e in entries if e["role"] == "related"]
-
-    def format_entries(entries):
+    def format_entries(role_entries):
         # Group by sector
         by_sector = defaultdict(list)
-        for e in entries:
+        for e in role_entries:
             by_sector[e["sector"]].append(e)
         result = []
         for sector in sorted(by_sector.keys()):
@@ -357,28 +488,25 @@ def build_theme_page(theme_tag, theme_def, wl_map, existing_related_line=None):
                 )
         return result
 
-    if upstream:
-        lines.append(f"## 上游 ({len(upstream)})")
+    # One rendering pass per role: derived survivors first (unchanged ordering),
+    # then any preserved manual lines for that role appended verbatim. Counts and
+    # section emission reflect the merged result, so a role that exists only via a
+    # manual line still gets its header.
+    for role, header in (
+        ("upstream", "上游"),
+        ("midstream", "中游"),
+        ("downstream", "下游"),
+        ("related", "相關公司"),
+    ):
+        derived_in_role = [e for e in surviving if e["role"] == role]
+        manual_in_role = manual_by_role.get(role, [])
+        section_count = len(derived_in_role) + len(manual_in_role)
+        if section_count == 0:
+            continue
+        lines.append(f"## {header} ({section_count})")
         lines.append("")
-        lines.extend(format_entries(upstream))
-        lines.append("")
-
-    if midstream:
-        lines.append(f"## 中游 ({len(midstream)})")
-        lines.append("")
-        lines.extend(format_entries(midstream))
-        lines.append("")
-
-    if downstream:
-        lines.append(f"## 下游 ({len(downstream)})")
-        lines.append("")
-        lines.extend(format_entries(downstream))
-        lines.append("")
-
-    if other:
-        lines.append(f"## 相關公司 ({len(other)})")
-        lines.append("")
-        lines.extend(format_entries(other))
+        lines.extend(format_entries(derived_in_role))
+        lines.extend(line for _, line in manual_in_role)
         lines.append("")
 
     return "\n".join(lines)
@@ -451,11 +579,19 @@ def main():
         safe_name = tag.replace(" ", "_").replace("/", "_")
         filepath = os.path.join(THEMES_DIR, f"{safe_name}.md")
         existing_related_line = extract_related_line(filepath)
-        page = build_theme_page(tag, defn, wl_map, existing_related_line)
+        manual_by_role, exclude_line = extract_manual_edits(filepath)
+        page = build_theme_page(
+            tag,
+            defn,
+            wl_map,
+            existing_related_line,
+            manual_by_role=manual_by_role,
+            exclude_line=exclude_line,
+        )
         if page:
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(page)
-            count = len(wl_map.get(tag, []))
+            count = page.count("\n- **")
             themes_built[tag] = count
             print(f"  {tag}: {count} companies -> {safe_name}.md")
 
