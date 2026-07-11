@@ -78,6 +78,11 @@ def test_dedup_cross_tier_priority_midstream_wins() -> None:
     assert unparsed is False
 
 
+def _manual_line(ticker: str, name: str) -> str:
+    """Build a manual member line from the module's own annotation constant."""
+    return f"- **{ticker} {name}** ({mod.MANUAL_ANNOTATION})"
+
+
 def test_dedup_cross_tier_priority_upstream_over_downstream() -> None:
     content = (
         "## 供應鏈位置\n"
@@ -200,7 +205,7 @@ def _write_page(tmp_path, body: str) -> str:
 
 # --- (a) a manual line in an existing page survives rebuild verbatim ----------
 def test_manual_line_survives_rebuild_verbatim(tmp_path) -> None:
-    manual_line = "- **6435 大中** (人工)"
+    manual_line = _manual_line("6435", "大中")
     existing = (
         "# AI 伺服器供應鏈\n\n> desc\n\n**涵蓋公司數:** 2\n\n---\n\n"
         "## 上游 (2)\n\n"
@@ -233,7 +238,7 @@ def test_manual_line_survives_rebuild_verbatim(tmp_path) -> None:
 
 # --- (b) manual line for a ticker ALSO derived -> exactly one line, manual wins
 def test_manual_line_overrides_derived_same_ticker() -> None:
-    manual_line = "- **6435 大中** (人工)"
+    manual_line = _manual_line("6435", "大中")
     # derived scan puts 6435 in 上游; admin set-role'd the manual line to 下游.
     wl_map = {
         _THEME: [
@@ -319,7 +324,7 @@ def test_no_manual_edits_identical_to_plain_derivation() -> None:
 
 # --- (e) excluded ticker that is ALSO a manual line -> manual wins (add>exclude)
 def test_manual_readd_beats_exclusion() -> None:
-    manual_line = "- **6435 大中** (人工)"
+    manual_line = _manual_line("6435", "大中")
     wl_map = {_THEME: [_derived("6435", "大中", "Chemicals", "upstream")]}
     # 6435 is both listed for exclusion AND manually re-added to 下游.
     page = mod.build_theme_page(
@@ -363,3 +368,46 @@ def test_exclusion_line_etl_grammar_inertness() -> None:
         if likely_ticker.match(tok.strip())
     ]
     assert caught_by_fallback == ["9999", "6435"]  # -> Cortex-side skip required
+
+
+def test_extract_manual_edits_missing_page_returns_empty(tmp_path):
+    """Documented contract (review HIGH-2): missing page -> ({}, None)."""
+    assert mod.extract_manual_edits(str(tmp_path / "nonexistent.md")) == ({}, None)
+
+
+def test_manual_line_under_unknown_header_warns_not_silent(tmp_path, capsys):
+    """Review HIGH-1: curated data under an unparseable header is warned, not dropped silently."""
+    page = tmp_path / "T.md"
+    page.write_text(
+        "# T\n\n---\n\n## 自訂區塊 (1)\n\n" + _manual_line("6435", "大中") + "\n",
+        encoding="utf-8",
+    )
+    manual, _ = mod.extract_manual_edits(str(page))
+    out = capsys.readouterr().out
+    assert manual == {}
+    assert "[warn]" in out and "6435" in out
+
+
+def test_duplicate_manual_ticker_first_wins_with_warning(tmp_path, capsys):
+    """Review MEDIUM-2: same ticker manually listed twice -> first occurrence wins."""
+    page = tmp_path / "T.md"
+    page.write_text(
+        "# T\n\n---\n\n## 上游 (1)\n\n" + _manual_line("6435", "大中") + "\n\n"
+        "## 中游 (1)\n\n" + _manual_line("6435", "大中") + "\n",
+        encoding="utf-8",
+    )
+    manual, _ = mod.extract_manual_edits(str(page))
+    assert list(manual) == ["upstream"]
+    assert len(manual["upstream"]) == 1
+    assert "duplicate manual line" in capsys.readouterr().out
+
+
+def test_rendered_member_row_count_matches_totals():
+    """Review MEDIUM-4: README's page.count-based tally equals the merged total."""
+    wl_map = {"T": [{"ticker": "1101", "company": "台泥", "sector": "Cement", "role": "upstream"}]}
+    page = mod.build_theme_page(
+        "T", {"name": "T", "desc": "d"}, wl_map,
+        manual_by_role={"midstream": [("6435", _manual_line("6435", "大中"))]},
+    )
+    assert page.count("\n- **") == 2
+    assert "**涵蓋公司數:** 2" in page

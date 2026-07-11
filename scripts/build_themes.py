@@ -99,6 +99,9 @@ RELATED_LINE_PATTERN = re.compile(r"^\*\*相關主題[：:]\*\*.*$", re.MULTILIN
 # self-defeating. Cortex does not write this line yet — that skip + the API
 # writer are the tracked follow-up; the rebuild semantics land here first.
 MANUAL_ANNOTATION = "人工"
+# 4-6 digits mirrors the Cortex ETL/editor member grammar (coverage_etl.py
+# theme_member_pattern) rather than this repo's 4-digit filename convention —
+# the API may write tickers this corpus has no report file for yet.
 MANUAL_MEMBER_PATTERN = re.compile(
     r"^- \*\*(\d{4,6}) .+?\*\* \(" + MANUAL_ANNOTATION + r"\)\s*$"
 )
@@ -106,7 +109,7 @@ EXCLUDE_LINE_PATTERN = re.compile(r"^\*\*人工排除[：:]\*\*.*$", re.MULTILIN
 
 # Reverse of the rendered role-section headers, used to recover which section an
 # existing manual line sits in. ``相關公司`` is the rendered header for the
-# ``related`` role; a bare ``相關`` prefix is tolerated for forward-compatibility.
+# ``related`` role; an exact bare-``相關`` header token is also accepted.
 _ROLE_BY_SECTION_HEADER = {
     "上游": "upstream",
     "中游": "midstream",
@@ -149,14 +152,32 @@ def extract_manual_edits(
         exclude_line = exclude_match.group(0)
 
     current_role: str | None = None
+    seen_tickers: set[str] = set()
     for line in content.splitlines():
         if line.startswith("## "):
             header_keyword = line[3:].strip().split(" ")[0]
             current_role = _ROLE_BY_SECTION_HEADER.get(header_keyword)
             continue
         member_match = MANUAL_MEMBER_PATTERN.match(line)
-        if member_match and current_role is not None:
-            manual_by_role[current_role].append((member_match.group(1), line))
+        if not member_match:
+            continue
+        if current_role is None:
+            # Never drop curated data silently (mirrors the unparsed-report
+            # warning convention in scan_wikilinks).
+            print(
+                f"[warn] {theme_filepath}: manual line under an unrecognized "
+                f"section header was NOT preserved: {line}"
+            )
+            continue
+        ticker = member_match.group(1)
+        if ticker in seen_tickers:
+            print(
+                f"[warn] {theme_filepath}: duplicate manual line for {ticker} "
+                "ignored (first occurrence wins)"
+            )
+            continue
+        seen_tickers.add(ticker)
+        manual_by_role[current_role].append((ticker, line))
 
     return dict(manual_by_role), exclude_line
 
@@ -386,13 +407,13 @@ def scan_wikilinks() -> dict[str, list[dict[str, str]]]:
 
 
 def build_theme_page(
-    theme_tag,
-    theme_def,
-    wl_map,
-    existing_related_line=None,
-    manual_by_role=None,
-    exclude_line=None,
-):
+    theme_tag: str,
+    theme_def: dict,
+    wl_map: dict,
+    existing_related_line: str | None = None,
+    manual_by_role: dict[str, list[tuple[str, str]]] | None = None,
+    exclude_line: str | None = None,
+) -> str | None:
     """Build a single theme markdown page.
 
     existing_related_line: the hand-curated 相關主題 line from the current
