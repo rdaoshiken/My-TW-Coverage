@@ -2,13 +2,13 @@
 
 > AI 訓練與推論伺服器完整供應鏈，從晶片到系統到散熱
 
-**涵蓋公司數:** 120
+**涵蓋公司數:** 127
 
 **相關主題:** [[CoWoS]] | [[HBM]] | [[NVIDIA]] | [[CPO]] | [[資料中心]]
 
 ---
 
-## 上游 (95)
+## 上游 (97)
 
 - **6175 立敦** (Aluminum)
 - **4543 萬在** (Auto Parts)
@@ -25,6 +25,7 @@
 - **3032 偉訓** (Computer Hardware)
 - **3564 其陽** (Computer Hardware)
 - **5465 富驊** (Computer Hardware)
+- **6197 佳必琪** (Computer Hardware)
 - **8054 安國** (Computer Hardware)
 - **5288 豐祥-KY** (Conglomerates)
 - **2420 新巨** (Electrical Equipment & Parts)
@@ -62,6 +63,7 @@
 - **5230 雷笛克光學** (Electronic Components)
 - **5457 宣德** (Electronic Components)
 - **6155 鈞寶** (Electronic Components)
+- **6156 松上** (Electronic Components)
 - **6272 驊陞** (Electronic Components)
 - **6924 榮惠-KY創** (Electronic Components)
 - **8043 蜜望實** (Electronic Components)
@@ -106,7 +108,7 @@
 - **8021 尖點** (Tools & Accessories)
 - **8390 金益鼎** (Waste Management)
 
-## 中游 (25)
+## 中游 (30)
 
 - **1587 吉茂** (Auto Parts)
 - **6245 立端** (Communication Equipment)
@@ -118,6 +120,9 @@
 - **2382 廣達** (Computer Hardware)
 - **2425 承啟** (Computer Hardware)
 - **3231 緯創** (Computer Hardware)
+- **6117 迎廣** (Computer Hardware)
+- **6166 凌華** (Computer Hardware)
+- **6199 天品** (Computer Hardware)
 - **6669 緯穎** (Computer Hardware)
 - **8210 勤誠** (Computer Hardware)
 - **2308 台達電** (Electronic Components)
@@ -125,11 +130,13 @@
 - **3207 耀勝** (Electronic Components)
 - **3322 建舜電** (Electronic Components)
 - **5328 華容** (Electronic Components)
+- **6203 海韻電** (Electronic Components)
 - **6698 旭暉應材** (Electronic Components)
 - **6834 天二科技** (Electronic Components)
 - **6840 東研信超** (Electronic Components)
 - **6862 三集瑞-KY** (Electronic Components)
 - **7861 貝爾威勒** (Electronic Components)
+- **6123 上奇** (Electronics & Computer Distribution)
 - **3691 碩禾** (Solar)
 - **6982 大井泵浦** (Specialty Industrial Machinery)
 - **8996 高力** (Specialty Industrial Machinery)
