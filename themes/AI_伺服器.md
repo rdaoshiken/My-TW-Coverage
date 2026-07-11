@@ -2,7 +2,7 @@
 
 > AI 訓練與推論伺服器完整供應鏈，從晶片到系統到散熱
 
-**涵蓋公司數:** 120
+**涵蓋公司數:** 119
 
 **相關主題:** [[CoWoS]] | [[HBM]] | [[NVIDIA]] | [[CPO]] | [[資料中心]]
 
@@ -101,7 +101,7 @@
 - **8021 尖點** (Tools & Accessories)
 - **8390 金益鼎** (Waste Management)
 
-## 中游 (30)
+## 中游 (29)
 
 - **1587 吉茂** (Auto Parts)
 - **6245 立端** (Communication Equipment)
@@ -129,7 +129,6 @@
 - **6840 東研信超** (Electronic Components)
 - **6862 三集瑞-KY** (Electronic Components)
 - **7861 貝爾威勒** (Electronic Components)
-- **6123 上奇** (Electronics & Computer Distribution)
 - **3691 碩禾** (Solar)
 - **6982 大井泵浦** (Specialty Industrial Machinery)
 - **8996 高力** (Specialty Industrial Machinery)
