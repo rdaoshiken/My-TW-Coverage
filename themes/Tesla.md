@@ -2,13 +2,13 @@
 
 > 特斯拉電動車台灣供應鏈成員
 
-**涵蓋公司數:** 45
+**涵蓋公司數:** 46
 
 **相關主題:** [[電動車]] | [[碳化矽]]
 
 ---
 
-## 上游 (45)
+## 上游 (46)
 
 - **1319 東陽** (Auto Parts)
 - **1536 和大** (Auto Parts)
@@ -40,6 +40,7 @@
 - **3481 群創** (Electronic Components)
 - **3624 光頡** (Electronic Components)
 - **3673 TPK-KY** (Electronic Components)
+- **3717 聯嘉投控** (Electronic Components)
 - **5243 乙盛-KY** (Electronic Components)
 - **5457 宣德** (Electronic Components)
 - **6821 聯寶** (Electronic Components)

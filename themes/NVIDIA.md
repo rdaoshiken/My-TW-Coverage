@@ -2,25 +2,40 @@
 
 > NVIDIA GPU 及 AI 平台台灣供應鏈
 
-**涵蓋公司數:** 73
+**涵蓋公司數:** 92
 
 **相關主題:** [[CoWoS]] | [[HBM]] | [[AI 伺服器]] | [[台積電]]
 
 ---
 
-## 上游 (25)
+## 上游 (43)
 
 - **3163 波若威** (Communication Equipment)
 - **6190 萬泰科** (Communication Equipment)
+- **2301 光寶科** (Computer Hardware)
 - **3013 晟銘電** (Computer Hardware)
 - **3324 雙鴻** (Computer Hardware)
+- **6117 迎廣** (Computer Hardware)
+- **6188 廣明** (Computer Hardware)
+- **6197 佳必琪** (Computer Hardware)
+- **3665 貿聯-KY** (Electrical Equipment & Parts)
+- **6781 AES-KY** (Electrical Equipment & Parts)
 - **2308 台達電** (Electronic Components)
 - **2317 鴻海** (Electronic Components)
+- **2383 台光電** (Electronic Components)
 - **3017 奇鋐** (Electronic Components)
 - **3037 欣興** (Electronic Components)
+- **3338 泰碩** (Electronic Components)
 - **3533 嘉澤** (Electronic Components)
+- **3605 宏致** (Electronic Components)
 - **3653 健策** (Electronic Components)
+- **3689 湧德** (Electronic Components)
 - **5230 雷笛克光學** (Electronic Components)
+- **6203 海韻電** (Electronic Components)
+- **6207 雷科** (Electronic Components)
+- **6210 慶生** (Electronic Components)
+- **6272 驊陞** (Electronic Components)
+- **6834 天二科技** (Electronic Components)
 - **6862 三集瑞-KY** (Electronic Components)
 - **7861 貝爾威勒** (Electronic Components)
 - **8046 南電** (Electronic Components)
@@ -31,10 +46,13 @@
 - **3587 閎康** (Scientific & Technical Instruments)
 - **4549 桓達** (Scientific & Technical Instruments)
 - **3189 景碩** (Semiconductor Equipment & Materials)
+- **6223 旺矽** (Semiconductor Equipment & Materials)
 - **2330 台積電** (Semiconductors)
 - **2449 京元電子** (Semiconductors)
 - **7749 意騰-KY** (Software - Infrastructure)
 - **1303 南亞** (Specialty Chemicals)
+- **3167 大量** (Specialty Industrial Machinery)
+- **6125 廣運** (Specialty Industrial Machinery)
 
 ## 中游 (12)
 
@@ -51,7 +69,7 @@
 - **3706 神達** (Computer Hardware)
 - **8210 勤誠** (Computer Hardware)
 
-## 下游 (35)
+## 下游 (36)
 
 - **2256 歐特明** (Auto Parts)
 - **2345 智邦** (Communication Equipment)
@@ -80,6 +98,7 @@
 - **5474 聰泰** (Electronic Components)
 - **3048 益登** (Electronics & Computer Distribution)
 - **3709 鑫聯大投控** (Electronics & Computer Distribution)
+- **6189 豐藝** (Electronics & Computer Distribution)
 - **6227 茂綸** (Electronics & Computer Distribution)
 - **6776 展碁國際** (Electronics & Computer Distribution)
 - **4550 長佳** (Engineering & Construction)

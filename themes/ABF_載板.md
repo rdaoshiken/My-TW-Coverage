@@ -2,13 +2,13 @@
 
 > Ajinomoto Build-up Film 載板，高階 IC 封裝基板
 
-**涵蓋公司數:** 11
+**涵蓋公司數:** 13
 
 **相關主題:** [[CoWoS]] | [[AI 伺服器]] | [[PCB]]
 
 ---
 
-## 上游 (6)
+## 上游 (7)
 
 - **8074 鉅橡** (Electronic Components)
 - **6691 洋基工程** (Engineering & Construction)
@@ -16,10 +16,12 @@
 - **1303 南亞** (Specialty Chemicals)
 - **3485 敘豐** (Specialty Industrial Machinery)
 - **4577 達航科技** (Specialty Industrial Machinery)
+- **6664 群翊** (Specialty Industrial Machinery)
 
-## 中游 (4)
+## 中游 (5)
 
 - **3037 欣興** (Electronic Components)
+- **4958 臻鼎-KY** (Electronic Components)
 - **8046 南電** (Electronic Components)
 - **3189 景碩** (Semiconductor Equipment & Materials)
 - **7795 長廣** (Specialty Industrial Machinery)
