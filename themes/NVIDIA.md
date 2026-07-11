@@ -2,13 +2,13 @@
 
 > NVIDIA GPU 及 AI 平台台灣供應鏈
 
-**涵蓋公司數:** 94
+**涵蓋公司數:** 92
 
 **相關主題:** [[CoWoS]] | [[HBM]] | [[AI 伺服器]] | [[台積電]]
 
 ---
 
-## 上游 (45)
+## 上游 (43)
 
 - **3163 波若威** (Communication Equipment)
 - **6190 萬泰科** (Communication Equipment)
@@ -35,13 +35,11 @@
 - **6207 雷科** (Electronic Components)
 - **6210 慶生** (Electronic Components)
 - **6272 驊陞** (Electronic Components)
-- **6512 啟發電** (Electronic Components)
 - **6834 天二科技** (Electronic Components)
 - **6862 三集瑞-KY** (Electronic Components)
 - **7861 貝爾威勒** (Electronic Components)
 - **8046 南電** (Electronic Components)
 - **8358 金居** (Electronic Components)
-- **6123 上奇** (Electronics & Computer Distribution)
 - **2059 川湖** (Furnishings, Fixtures & Appliances)
 - **6584 南俊國際** (Furnishings, Fixtures & Appliances)
 - **2360 致茂** (Scientific & Technical Instruments)

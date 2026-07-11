@@ -23,7 +23,7 @@
 
 - [AI 伺服器](AI_伺服器.md) — 120 家公司
 - [資料中心](資料中心.md) — 65 家公司
-- [NVIDIA](NVIDIA.md) — 94 家公司
+- [NVIDIA](NVIDIA.md) — 92 家公司
 
 ## 電動車 / 車用
 
@@ -48,5 +48,5 @@
 ## 品牌供應鏈
 
 - [Apple](Apple.md) — 77 家公司
-- [NVIDIA](NVIDIA.md) — 94 家公司
+- [NVIDIA](NVIDIA.md) — 92 家公司
 - [Tesla](Tesla.md) — 46 家公司
