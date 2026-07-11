@@ -2,13 +2,13 @@
 
 > AI 訓練與推論伺服器完整供應鏈，從晶片到系統到散熱
 
-**涵蓋公司數:** 120
+**涵蓋公司數:** 119
 
 **相關主題:** [[CoWoS]] | [[HBM]] | [[NVIDIA]] | [[CPO]] | [[資料中心]]
 
 ---
 
-## 上游 (95)
+## 上游 (90)
 
 - **6175 立敦** (Aluminum)
 - **4543 萬在** (Auto Parts)
@@ -19,14 +19,13 @@
 - **3221 台嘉碩** (Communication Equipment)
 - **6134 萬旭** (Communication Equipment)
 - **6190 萬泰科** (Communication Equipment)
-- **6220 岳豐** (Communication Equipment)
 - **2301 光寶科** (Computer Hardware)
 - **3013 晟銘電** (Computer Hardware)
 - **3032 偉訓** (Computer Hardware)
 - **3564 其陽** (Computer Hardware)
 - **5465 富驊** (Computer Hardware)
+- **6197 佳必琪** (Computer Hardware)
 - **8054 安國** (Computer Hardware)
-- **5288 豐祥-KY** (Conglomerates)
 - **2420 新巨** (Electrical Equipment & Parts)
 - **3002 歐格** (Electrical Equipment & Parts)
 - **3058 立德** (Electrical Equipment & Parts)
@@ -43,12 +42,10 @@
 - **3011 今皓** (Electronic Components)
 - **3017 奇鋐** (Electronic Components)
 - **3037 欣興** (Electronic Components)
-- **3042 晶技** (Electronic Components)
 - **3044 健鼎** (Electronic Components)
 - **3090 日電貿** (Electronic Components)
 - **3217 優群** (Electronic Components)
 - **3236 千如** (Electronic Components)
-- **3305 昇貿** (Electronic Components)
 - **3338 泰碩** (Electronic Components)
 - **3357 臺慶科** (Electronic Components)
 - **3526 凡甲** (Electronic Components)
@@ -57,21 +54,19 @@
 - **3653 健策** (Electronic Components)
 - **3675 德微** (Electronic Components)
 - **3689 湧德** (Electronic Components)
-- **4573 高明鐵** (Electronic Components)
 - **4958 臻鼎-KY** (Electronic Components)
 - **5230 雷笛克光學** (Electronic Components)
 - **5457 宣德** (Electronic Components)
 - **6155 鈞寶** (Electronic Components)
+- **6156 松上** (Electronic Components)
 - **6272 驊陞** (Electronic Components)
 - **6924 榮惠-KY創** (Electronic Components)
 - **8043 蜜望實** (Electronic Components)
 - **8046 南電** (Electronic Components)
-- **8121 越峰** (Electronic Components)
 - **8155 博智** (Electronic Components)
 - **8358 金居** (Electronic Components)
 - **3048 益登** (Electronics & Computer Distribution)
 - **3483 力致** (Electronics & Computer Distribution)
-- **3540 曜越** (Electronics & Computer Distribution)
 - **6761 穩得** (Electronics & Computer Distribution)
 - **6903 巨漢** (Engineering & Construction)
 - **2059 川湖** (Furnishings, Fixtures & Appliances)
@@ -106,7 +101,7 @@
 - **8021 尖點** (Tools & Accessories)
 - **8390 金益鼎** (Waste Management)
 
-## 中游 (25)
+## 中游 (29)
 
 - **1587 吉茂** (Auto Parts)
 - **6245 立端** (Communication Equipment)
@@ -118,6 +113,9 @@
 - **2382 廣達** (Computer Hardware)
 - **2425 承啟** (Computer Hardware)
 - **3231 緯創** (Computer Hardware)
+- **6117 迎廣** (Computer Hardware)
+- **6166 凌華** (Computer Hardware)
+- **6199 天品** (Computer Hardware)
 - **6669 緯穎** (Computer Hardware)
 - **8210 勤誠** (Computer Hardware)
 - **2308 台達電** (Electronic Components)
@@ -125,6 +123,7 @@
 - **3207 耀勝** (Electronic Components)
 - **3322 建舜電** (Electronic Components)
 - **5328 華容** (Electronic Components)
+- **6203 海韻電** (Electronic Components)
 - **6698 旭暉應材** (Electronic Components)
 - **6834 天二科技** (Electronic Components)
 - **6840 東研信超** (Electronic Components)
