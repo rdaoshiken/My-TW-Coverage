@@ -8,6 +8,7 @@ Run with: python3 -m pytest tests/ -q
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 _SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "build_themes.py"
@@ -176,3 +177,189 @@ def test_english_tier_labels_case_insensitive():
     assert memberships["大寫題材"] == "downstream"  # company upstream -> theme downstream
     assert memberships["小寫題材"] == "upstream"    # company downstream -> theme upstream
     assert unparsed is False
+
+
+# ===========================================================================
+# Manual member preservation (Cortex #833/#834 companion). A theme page is the
+# SSOT for admin edits: (人工)-annotated member lines and the **人工排除:** line
+# survive a rebuild, mirroring the existing 相關主題 preservation (PR #5).
+# ===========================================================================
+
+_THEME = "AI 伺服器"
+
+
+def _derived(ticker, company, sector, role):
+    return {"ticker": ticker, "company": company, "sector": sector, "role": role}
+
+
+def _write_page(tmp_path, body: str) -> str:
+    filepath = tmp_path / "theme.md"
+    filepath.write_text(body, encoding="utf-8")
+    return str(filepath)
+
+
+# --- (a) a manual line in an existing page survives rebuild verbatim ----------
+def test_manual_line_survives_rebuild_verbatim(tmp_path) -> None:
+    manual_line = "- **6435 大中** (人工)"
+    existing = (
+        "# AI 伺服器供應鏈\n\n> desc\n\n**涵蓋公司數:** 2\n\n---\n\n"
+        "## 上游 (2)\n\n"
+        "- **1111 甲公司** (Chemicals)\n"
+        f"{manual_line}\n\n"
+    )
+    filepath = _write_page(tmp_path, existing)
+
+    manual_by_role, exclude_line = mod.extract_manual_edits(filepath)
+    assert manual_by_role == {"upstream": [("6435", manual_line)]}
+    assert exclude_line is None
+
+    wl_map = {_THEME: [_derived("1111", "甲公司", "Chemicals", "upstream")]}
+    page = mod.build_theme_page(
+        _THEME,
+        mod.THEME_DEFINITIONS[_THEME],
+        wl_map,
+        manual_by_role=manual_by_role,
+        exclude_line=exclude_line,
+    )
+    assert manual_line in page                 # verbatim, incl. (人工) annotation
+    assert page.count(manual_line) == 1
+    # counts reflect the merged result: 1 derived + 1 manual, both upstream
+    assert "## 上游 (2)" in page
+    assert "**涵蓋公司數:** 2" in page
+    # the manual line sits inside the 上游 section
+    upstream_block = page.split("## 上游 (2)")[1]
+    assert manual_line in upstream_block
+
+
+# --- (b) manual line for a ticker ALSO derived -> exactly one line, manual wins
+def test_manual_line_overrides_derived_same_ticker() -> None:
+    manual_line = "- **6435 大中** (人工)"
+    # derived scan puts 6435 in 上游; admin set-role'd the manual line to 下游.
+    wl_map = {
+        _THEME: [
+            _derived("6435", "大中", "Chemicals", "upstream"),
+            _derived("1111", "甲公司", "Chemicals", "upstream"),
+        ]
+    }
+    manual_by_role = {"downstream": [("6435", manual_line)]}
+    page = mod.build_theme_page(
+        _THEME,
+        mod.THEME_DEFINITIONS[_THEME],
+        wl_map,
+        manual_by_role=manual_by_role,
+    )
+    # exactly one line mentions 6435 — the manual one
+    assert page.count("6435") == 1
+    assert manual_line in page
+    assert "- **6435 大中** (Chemicals)" not in page   # derived form dropped
+    # it lives in 下游 (admin's chosen section), not 上游
+    assert "## 下游 (1)" in page
+    assert "## 上游 (1)" in page                        # only 1111 survives here
+    downstream_block = page.split("## 下游 (1)")[1]
+    assert manual_line in downstream_block
+    assert "**涵蓋公司數:** 2" in page                  # 1111 + manual 6435
+
+
+# --- (c) 人工排除 line suppresses a derived ticker AND is carried over verbatim -
+def test_exclusion_suppresses_derived_and_carried_verbatim(tmp_path) -> None:
+    exclude_line = "**人工排除:** [[9999]]"
+    existing = (
+        "# AI 伺服器供應鏈\n\n> desc\n\n**涵蓋公司數:** 2\n\n"
+        f"{exclude_line}\n\n---\n\n"
+        "## 上游 (2)\n\n"
+        "- **1111 甲公司** (Chemicals)\n"
+        "- **9999 乙公司** (Chemicals)\n\n"
+    )
+    filepath = _write_page(tmp_path, existing)
+
+    manual_by_role, extracted_exclude = mod.extract_manual_edits(filepath)
+    assert manual_by_role == {}
+    assert extracted_exclude == exclude_line
+
+    wl_map = {
+        _THEME: [
+            _derived("1111", "甲公司", "Chemicals", "upstream"),
+            _derived("9999", "乙公司", "Chemicals", "upstream"),
+        ]
+    }
+    page = mod.build_theme_page(
+        _THEME,
+        mod.THEME_DEFINITIONS[_THEME],
+        wl_map,
+        exclude_line=extracted_exclude,
+    )
+    assert "- **9999 乙公司** (Chemicals)" not in page  # derived member suppressed
+    assert "- **1111 甲公司** (Chemicals)" in page       # sibling kept
+    assert exclude_line in page                        # carried over verbatim
+    # 9999 survives only inside the verbatim exclusion line, never as a member
+    assert page.count("9999") == 1
+    assert "## 上游 (1)" in page
+    assert "**涵蓋公司數:** 1" in page
+
+
+# --- (d) neither manual nor exclude -> identical to plain derivation -----------
+def test_no_manual_edits_identical_to_plain_derivation() -> None:
+    wl_map = {
+        _THEME: [
+            _derived("1111", "甲公司", "Chemicals", "upstream"),
+            _derived("2222", "乙公司", "Chemicals", "downstream"),
+        ]
+    }
+    plain = mod.build_theme_page(_THEME, mod.THEME_DEFINITIONS[_THEME], wl_map)
+    with_empty = mod.build_theme_page(
+        _THEME,
+        mod.THEME_DEFINITIONS[_THEME],
+        wl_map,
+        manual_by_role={},
+        exclude_line=None,
+    )
+    assert plain == with_empty          # no behaviour change when no admin edits
+    assert "**涵蓋公司數:** 2" in plain
+
+
+# --- (e) excluded ticker that is ALSO a manual line -> manual wins (add>exclude)
+def test_manual_readd_beats_exclusion() -> None:
+    manual_line = "- **6435 大中** (人工)"
+    wl_map = {_THEME: [_derived("6435", "大中", "Chemicals", "upstream")]}
+    # 6435 is both listed for exclusion AND manually re-added to 下游.
+    page = mod.build_theme_page(
+        _THEME,
+        mod.THEME_DEFINITIONS[_THEME],
+        wl_map,
+        manual_by_role={"downstream": [("6435", manual_line)]},
+        exclude_line="**人工排除:** [[6435]]",
+    )
+    assert manual_line in page                       # manual re-add wins
+    assert "- **6435 大中** (Chemicals)" not in page   # derived form still dropped
+    assert "## 下游 (1)" in page
+    assert "**涵蓋公司數:** 1" in page
+
+
+# --- (f) 人工排除 line inertness against the Cortex ETL member/relation regexes -
+def test_exclusion_line_etl_grammar_inertness() -> None:
+    """The 人工排除 line matches neither the member nor the relation regex used
+    by Cortex's coverage_etl._parse_themes (mirrors 相關主題-adjacent inertness).
+
+    KNOWN CORTEX FOLLOW-UP: _parse_themes explicitly recognises + skips the
+    相關主題 line BEFORE its fallback wikilink scan, so those links never become
+    members. 人工排除 is not yet recognised there, so its bare [[DDDD]] wikilinks
+    would be re-ingested by that fallback (coverage_etl.py ~616-629). Cortex must
+    give 人工排除 the same explicit-skip treatment before its API emits the line;
+    the assertion below reproduces the gap so the follow-up cannot be forgotten.
+    """
+    exclude_line = "**人工排除:** [[9999]] [[6435]]"
+    # Regexes copied verbatim from coverage_etl.py:541-551 (do NOT import Cortex).
+    member_pattern = re.compile(r"^\s*-\s+\*\*(\d{4,6})\s+(.+?)\*\*\s*(?:\((.+?)\))?")
+    relation_line_pattern = re.compile(r"^\*\*相關主題[：:]\*\*\s*(.+)$")
+    assert member_pattern.match(exclude_line) is None      # not a member line
+    assert relation_line_pattern.match(exclude_line) is None  # not a relation line
+
+    # Reproduce the ETL fallback path (coverage_etl.py ~616-629) to lock in the
+    # documented gap: bare numeric wikilinks look like TW tickers.
+    wikilink_pattern = re.compile(r"\[\[([^\]]+)\]\]")
+    likely_ticker = re.compile(r"^\d{4,6}$")
+    caught_by_fallback = [
+        tok for tok in wikilink_pattern.findall(exclude_line)
+        if likely_ticker.match(tok.strip())
+    ]
+    assert caught_by_fallback == ["9999", "6435"]  # -> Cortex-side skip required
