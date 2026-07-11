@@ -2,13 +2,13 @@
 
 > 蘋果公司台灣供應鏈成員
 
-**涵蓋公司數:** 72
+**涵蓋公司數:** 77
 
 **相關主題:** [[台積電]] | [[鴻海]]
 
 ---
 
-## 上游 (59)
+## 上游 (64)
 
 - **8438 昶昕** (Chemicals)
 - **2382 廣達** (Computer Hardware)
@@ -45,7 +45,9 @@
 - **4958 臻鼎-KY** (Electronic Components)
 - **5457 宣德** (Electronic Components)
 - **6114 久威** (Electronic Components)
+- **6153 嘉聯益** (Electronic Components)
 - **6176 瑞儀** (Electronic Components)
+- **6217 中探針** (Electronic Components)
 - **6854 錼創科技-KY創** (Electronic Components)
 - **8046 南電** (Electronic Components)
 - **4994 傳奇** (Electronic Gaming & Multimedia)
@@ -61,10 +63,13 @@
 - **3105 穩懋** (Semiconductors)
 - **3711 日月光投控** (Semiconductors)
 - **4966 譜瑞-KY** (Semiconductors)
+- **6278 台表科** (Semiconductors)
+- **6488 環球晶** (Semiconductors)
 - **6937 天虹** (Semiconductors)
 - **6146 耕興** (Specialty Business Services)
 - **6585 鼎基** (Specialty Chemicals)
 - **1590 亞德客-KY** (Specialty Industrial Machinery)
+- **2476 鉅祥** (Specialty Industrial Machinery)
 - **3518 柏騰** (Specialty Industrial Machinery)
 - **6706 惠特** (Specialty Industrial Machinery)
 - **8996 高力** (Specialty Industrial Machinery)
