@@ -9,7 +9,7 @@
 
 - [CoWoS](CoWoS.md) — 31 家公司
 - [HBM](HBM.md) — 14 家公司
-- [CPO](CPO.md) — 11 家公司
+- [CPO](CPO.md) — 13 家公司
 
 ## 光電與化合物半導體
 
