@@ -49,6 +49,8 @@ Scope options: `2330`, `2330 2317`, `--batch 101`, `--sector Semiconductors`, or
 python scripts/audit_batch.py <batch> -v
 ```
 
+For theme-scoped refreshes that match no batch (e.g. #853), audit an explicit list instead: `python scripts/audit_batch.py --tickers 2308 8358 2301 -v` (or `--tickers-file <path>`).
+
 Verify all targets pass (8+ wikilinks, no generics, no placeholders, no English).
 
 ### Quality Rules (from CLAUDE.md)
