@@ -7,14 +7,22 @@ metadata completeness, section depth.
 Usage:
   python scripts/audit_batch.py <batch_number> [-v]     Audit a single batch
   python scripts/audit_batch.py --all [-v]              Audit all completed batches
+  python scripts/audit_batch.py --tickers 2308 8358 ... [-v]   Audit an explicit list
+  python scripts/audit_batch.py --tickers-file <path> [-v]     ...from a file
 """
 
+import argparse
 import os
 import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import REPORTS_DIR, TASK_FILE, get_batch_tickers, setup_stdout
+from utils import (
+    TASK_FILE,
+    find_ticker_files,
+    get_batch_tickers,
+    setup_stdout,
+)
 
 # --- Quality Rules (aligned with CLAUDE.md Golden Rules) ---
 
@@ -143,29 +151,18 @@ def audit_ticker(content):
     return len(issues) == 0, issues
 
 
-def find_batch_files(tickers):
-    """Find files for a list of tickers."""
-    found = {}
-    for root, dirs, files in os.walk(REPORTS_DIR):
-        for file in files:
-            if file.endswith(".md"):
-                match = re.match(r"^(\d{4})", file)
-                if match and match.group(1) in tickers:
-                    found[match.group(1)] = os.path.join(root, file)
-    return found
+def report_audit(tickers, found, scope_label, verbose=False):
+    """Run the per-ticker audit over `tickers` and print the standard report.
 
-
-def audit_batch(batch_num, verbose=False):
-    tickers = get_batch_tickers(batch_num)
-    if not tickers:
-        return
-
-    print(f"QUALITY AUDIT: Checking {len(tickers)} tickers in Batch {batch_num}...")
+    Shared by every scope (batch, --all subtotals aside, and explicit --tickers)
+    so the classification and output are identical regardless of how the ticker
+    set was resolved. `found` maps ticker -> filepath.
+    """
+    print(f"QUALITY AUDIT: Checking {len(tickers)} tickers in {scope_label}...")
     print(f"Rules: min {MIN_WIKILINKS} wikilinks, no generics, no placeholders, no English")
     print("=" * 60)
 
     clean, enrichment, quality_fix, missing = [], [], [], []
-    found = find_batch_files(tickers)
 
     for ticker in tickers:
         if ticker not in found:
@@ -216,6 +213,49 @@ def audit_batch(batch_num, verbose=False):
     print(f"\nScore: {len(clean)}/{total} ({pct:.0f}%) pass quality audit")
 
 
+def audit_batch(batch_num, verbose=False):
+    tickers = get_batch_tickers(batch_num)
+    if not tickers:
+        return
+    found = find_ticker_files(tickers)
+    report_audit(tickers, found, f"Batch {batch_num}", verbose)
+
+
+def audit_ticker_list(tickers, verbose=False):
+    """Audit an explicit, arbitrary ticker set (e.g. a theme-scoped #853 refresh).
+
+    Reuses the shared per-ticker audit and the utils file-resolution helper.
+    An empty list and unknown tickers (no report file in the corpus) are hard
+    errors: they are reported and a non-zero exit code is returned without
+    running the audit.
+    """
+    if not tickers:
+        print("Error: no tickers resolved (empty ticker list)")
+        return 1
+    found = find_ticker_files(tickers)
+    unknown = [t for t in tickers if t not in found]
+    if unknown:
+        print(f"Error: {len(unknown)} ticker(s) not found in corpus: {', '.join(unknown)}")
+        return 1
+    report_audit(tickers, found, f"the specified {len(tickers)}-ticker list", verbose)
+    return 0
+
+
+def read_tickers_file(path):
+    """Read one ticker per line from `path`; blank lines and #-comments ignored."""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except OSError as e:
+        print(f"Error reading tickers file {path}: {e}")
+        sys.exit(1)
+    return [
+        stripped
+        for line in lines
+        if (stripped := line.strip()) and not stripped.startswith("#")
+    ]
+
+
 def audit_all_completed(verbose=False):
     """Audit all batches marked [x] in task.md."""
     try:
@@ -241,7 +281,7 @@ def audit_all_completed(verbose=False):
         if not tickers:
             continue
 
-        found = find_batch_files(tickers)
+        found = find_ticker_files(tickers)
         batch_issues = []
 
         for ticker in tickers:
@@ -274,18 +314,48 @@ def audit_all_completed(verbose=False):
     print(f"Total tickers needing quality fix: {len(all_issues)}")
 
 
-if __name__ == "__main__":
+def build_parser():
+    """Build the CLI parser. Scope selectors are mutually exclusive."""
+    parser = argparse.ArgumentParser(
+        prog="audit_batch.py",
+        description="Quality audit for ticker reports.",
+    )
+    parser.add_argument("-v", "--verbose", action="store_true", help="per-ticker detail")
+    scope = parser.add_mutually_exclusive_group()
+    scope.add_argument(
+        "batch", nargs="?", metavar="batch_number",
+        help="audit a single batch from task.md",
+    )
+    scope.add_argument("--all", action="store_true", help="audit all completed batches")
+    scope.add_argument(
+        "--tickers", nargs="+", metavar="TICKER",
+        help="audit an explicit, space-separated ticker list",
+    )
+    scope.add_argument(
+        "--tickers-file", metavar="PATH",
+        help="audit tickers read from a file (one per line)",
+    )
+    return parser
+
+
+def main(argv=None):
     setup_stdout()
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
-    if len(sys.argv) < 2:
-        print("Usage:")
-        print("  python scripts/audit_batch.py <batch_number> [-v]")
-        print("  python scripts/audit_batch.py --all [-v]")
-        sys.exit(1)
+    if args.tickers or args.tickers_file:
+        tickers = args.tickers or read_tickers_file(args.tickers_file)
+        return audit_ticker_list(tickers, args.verbose)
+    if args.all:
+        audit_all_completed(args.verbose)
+        return 0
+    if args.batch is not None:
+        audit_batch(args.batch, args.verbose)
+        return 0
 
-    verbose = "-v" in sys.argv
+    parser.print_help()
+    return 1
 
-    if sys.argv[1] == "--all":
-        audit_all_completed(verbose)
-    else:
-        audit_batch(sys.argv[1], verbose)
+
+if __name__ == "__main__":
+    sys.exit(main())
